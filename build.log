@@ -1,0 +1,84 @@
+--progress is a global compose flag, better use `docker compose --progress xx build ...
+ Image si-investing-app-web Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 578B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 485B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-bookworm
+#3 DONE 0.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 125B done
+#4 DONE 0.0s
+
+#5 [1/7] FROM docker.io/library/node:20-bookworm@sha256:94a5714e6b243bf37a1767e637996302fadd9443327f5bdbf0179758fe70cacd
+#5 resolve docker.io/library/node:20-bookworm@sha256:94a5714e6b243bf37a1767e637996302fadd9443327f5bdbf0179758fe70cacd done
+#5 DONE 0.0s
+
+#6 [2/7] WORKDIR /app
+#6 CACHED
+
+#7 [internal] load build context
+#7 transferring context: 1.86kB done
+#7 DONE 0.0s
+
+#8 [3/7] COPY package.json package-lock.json ./
+#8 DONE 0.0s
+
+#9 [4/7] RUN npm install --legacy-peer-deps
+#9 36.78 
+#9 36.78 added 380 packages, and audited 381 packages in 36s
+#9 36.78 
+#9 36.78 147 packages are looking for funding
+#9 36.78   run `npm fund` for details
+#9 36.91 
+#9 36.91 14 vulnerabilities (1 moderate, 13 high)
+#9 36.91 
+#9 36.91 To address issues that do not require attention, run:
+#9 36.91   npm audit fix
+#9 36.91 
+#9 36.91 To address all issues (including breaking changes), run:
+#9 36.91   npm audit fix --force
+#9 36.91 
+#9 36.91 Run `npm audit` for details.
+#9 36.91 npm notice
+#9 36.91 npm notice New major version of npm available! 10.8.2 -> 11.10.0
+#9 36.91 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.10.0
+#9 36.91 npm notice To update run: npm install -g npm@11.10.0
+#9 36.91 npm notice
+#9 DONE 37.6s
+
+#10 [5/7] COPY . .
+#10 DONE 0.2s
+
+#11 [6/7] RUN npx prisma generate
+#11 0.692 Prisma schema loaded from prisma/schema.prisma
+#11 0.911 Error: Cannot convert undefined or null to object
+#11 ERROR: process "/bin/sh -c npx prisma generate" did not complete successfully: exit code: 1
+------
+ > [6/7] RUN npx prisma generate:
+0.692 Prisma schema loaded from prisma/schema.prisma
+0.911 Error: Cannot convert undefined or null to object
+------
+Dockerfile:13
+
+--------------------
+
+  11 |     # Dummy URL for schema load during generate (no DB connection); runtime URL comes from compose
+
+  12 |     ENV DATABASE_URL="postgres://localhost:5432/dummy"
+
+  13 | >>> RUN npx prisma generate
+
+  14 |     
+
+  15 |     RUN npm run build
+
+--------------------
+
+failed to solve: process "/bin/sh -c npx prisma generate" did not complete successfully: exit code: 1
+

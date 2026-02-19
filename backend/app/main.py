@@ -1,0 +1,92 @@
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
+from .csv_parser import parse_dividend_csv
+from .database import get_db, init_db
+from .schemas import DividendHolding, DividendHoldingCreate, StatsResponse
+from .store import HoldingStore
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="SI Investing App",
+    version="0.1.0",
+    description="Dividend portfolio dashboard",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/api/holdings", response_model=list[DividendHolding])
+def list_holdings(db: Session = Depends(get_db)) -> list[DividendHolding]:
+    store = HoldingStore(db)
+    return store.list()
+
+
+@app.post("/api/holdings", response_model=DividendHolding, status_code=201)
+def create_holding(
+    payload: DividendHoldingCreate,
+    db: Session = Depends(get_db),
+) -> DividendHolding:
+    store = HoldingStore(db)
+    return store.upsert(payload)
+
+
+@app.get("/api/stats", response_model=StatsResponse)
+def get_stats(db: Session = Depends(get_db)) -> StatsResponse:
+    store = HoldingStore(db)
+    return StatsResponse(**store.stats())
+
+
+@app.post("/api/holdings/import-csv", response_model=dict)
+async def import_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
+    try:
+        content = (await file.read()).decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid encoding: {e}")
+
+    try:
+        records, skipped = parse_dividend_csv(content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {e}")
+
+    if not records:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid records. Expected columns: Ticker, Company, Sector, Price, P/E, Ann. Div, Cur. Yield, 5-Yr Avg Yield, Valuation, Payout %, 5-Yr Gr, SI Verdict, Why it fits",
+        )
+
+    store = HoldingStore(db)
+    count = store.bulk_upsert(records)
+    return {
+        "message": f"Imported {count} holdings",
+        "imported": count,
+        "skipped": len(skipped),
+        "skipped_details": skipped,
+    }
