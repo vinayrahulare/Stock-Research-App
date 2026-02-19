@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DividendHolding {
+  id           Int      @id @default(autoincrement())
+  ticker       String
+  company      String
+  sector       String
+  price        Decimal  @db.Numeric(12, 2)
+  pe           Decimal? @db.Numeric(8, 2)
+  annualDiv    Decimal  @db.Numeric(8, 2)
+  currentYield Decimal  @db.Numeric(6, 2)
+  avgYield5y   Decimal? @db.Numeric(6, 2)
+  valuation    String
+  payoutPct    Decimal? @db.Numeric(6, 2)
+  growth5y     Decimal? @db.Numeric(6, 2)
+  siVerdict    String
+  whyItFits    String
+  createdAt    DateTime @default(now())
+}
+

@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: si_user
+      POSTGRES_PASSWORD: si_password
+      POSTGRES_DB: si_investing
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://si_user:si_password@db:5432/si_investing
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    command: [ "sh", "-c", "npx prisma migrate deploy && npm run start" ]
+
+volumes:
+  pgdata:
+

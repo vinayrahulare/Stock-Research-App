@@ -1,0 +1,8 @@
+node_modules
+.next
+.env
+.DS_Store
+
+# Local raw data samples (CSV, Excel, etc.)
+raw_data/
+
