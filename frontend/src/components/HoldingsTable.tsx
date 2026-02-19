@@ -10,9 +10,14 @@ import {
   Chip,
   CircularProgress,
   TablePagination,
-  InputBase,
   Box,
+  FormControl,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
+  TableSortLabel,
 } from "@mui/material";
+import { useMemo, useState } from "react";
 import type { DividendHolding } from "../types";
 
 export interface HoldingsFilters {
@@ -34,7 +39,32 @@ interface HoldingsTableProps {
   onRowsPerPageChange: (rowsPerPage: number) => void;
   filters: HoldingsFilters;
   onFilterChange: (filters: HoldingsFilters) => void;
+  filterOptions: HoldingsFiltersOptions;
+  sortBy: SortableColumn;
+  sortOrder: "asc" | "desc";
+  onSortChange: (column: SortableColumn) => void;
 }
+
+export interface HoldingsFiltersOptions {
+  ticker: string[];
+  company: string[];
+  sector: string[];
+  valuation: string[];
+  si_verdict: string[];
+  why_it_fits: string[];
+}
+
+export type SortableColumn =
+  | "ticker"
+  | "company"
+  | "sector"
+  | "price"
+  | "pe"
+  | "annual_div"
+  | "current_yield"
+  | "valuation"
+  | "si_verdict"
+  | "why_it_fits";
 
 function num(v: string | number | null | undefined): string {
   if (v == null) return "—";
@@ -52,11 +82,56 @@ export function HoldingsTable({
   onRowsPerPageChange,
   filters,
   onFilterChange,
+  filterOptions,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }: HoldingsTableProps) {
-  const handleFilter = (field: keyof HoldingsFilters) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const [columnWidths, setColumnWidths] = useState<Record<SortableColumn, number>>({
+    ticker: 110,
+    company: 180,
+    sector: 140,
+    price: 95,
+    pe: 80,
+    annual_div: 100,
+    current_yield: 110,
+    valuation: 130,
+    si_verdict: 130,
+    why_it_fits: 280,
+  });
+
+  const columns = useMemo(
+    () => [
+      { key: "ticker", label: "Ticker", align: "left" as const },
+      { key: "company", label: "Company", align: "left" as const },
+      { key: "sector", label: "Sector", align: "left" as const },
+      { key: "price", label: "Price", align: "right" as const },
+      { key: "pe", label: "P/E", align: "right" as const },
+      { key: "annual_div", label: "Ann. Div", align: "right" as const },
+      { key: "current_yield", label: "Cur. Yield", align: "right" as const },
+      { key: "valuation", label: "Valuation", align: "left" as const },
+      { key: "si_verdict", label: "High Quality", align: "left" as const },
+      { key: "why_it_fits", label: "Why it fits", align: "left" as const },
+    ],
+    []
+  );
+
+  const handleFilter = (field: keyof HoldingsFilters) => (e: SelectChangeEvent) => {
     onFilterChange({ ...filters, [field]: e.target.value });
+  };
+
+  const startResize = (column: SortableColumn, startX: number) => {
+    const startWidth = columnWidths[column];
+    const onMove = (event: MouseEvent) => {
+      const width = Math.max(90, startWidth + (event.clientX - startX));
+      setColumnWidths((prev) => ({ ...prev, [column]: width }));
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
   if (loading) {
@@ -80,111 +155,141 @@ export function HoldingsTable({
 
   return (
     <Paper>
-      <TableContainer sx={{ maxHeight: "70vh" }}>
-        <Table size="small" stickyHeader>
+      <TableContainer sx={{ maxHeight: "70vh", overflowY: "auto" }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ minWidth: 90 }}>
-                <strong>Ticker</strong>
-                <Box sx={{ mt: 0.5 }}>
-                  <InputBase
-                    size="small"
-                    placeholder="Filter…"
-                    value={filters.ticker}
-                    onChange={handleFilter("ticker")}
+              {columns.map((column) => (
+                <TableCell
+                  key={column.key}
+                  align={column.align}
+                  sx={{
+                    width: columnWidths[column.key as SortableColumn],
+                    minWidth: 90,
+                    borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+                    backgroundColor: "background.paper",
+                    top: 0,
+                    zIndex: 3,
+                    position: "sticky",
+                  }}
+                >
+                  <TableSortLabel
+                    active={sortBy === column.key}
+                    direction={sortBy === column.key ? sortOrder : "asc"}
+                    onClick={() => onSortChange(column.key as SortableColumn)}
+                  >
+                    <strong>{column.label}</strong>
+                  </TableSortLabel>
+                  <Box
                     sx={{
-                      fontSize: "0.8rem",
-                      "& .MuiInputBase-input": { py: 0.5, px: 1 },
+                      position: "absolute",
+                      top: 8,
+                      right: 0,
+                      width: 8,
+                      bottom: 8,
+                      cursor: "col-resize",
+                      borderRight: (theme) =>
+                        `1px solid ${theme.palette.action.disabled}`,
                     }}
+                    onMouseDown={(e) =>
+                      startResize(column.key as SortableColumn, e.clientX)
+                    }
                   />
-                </Box>
+                </TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell sx={{ width: columnWidths.ticker }}>
+                <FormControl size="small" fullWidth>
+                  <Select value={filters.ticker} displayEmpty onChange={handleFilter("ticker")}>
+                    <MenuItem value="">All</MenuItem>
+                    {filterOptions.ticker.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </TableCell>
-              <TableCell sx={{ minWidth: 140 }}>
-                <strong>Company</strong>
-                <Box sx={{ mt: 0.5 }}>
-                  <InputBase
-                    size="small"
-                    placeholder="Filter…"
+              <TableCell sx={{ width: columnWidths.company }}>
+                <FormControl size="small" fullWidth>
+                  <Select
                     value={filters.company}
+                    displayEmpty
                     onChange={handleFilter("company")}
-                    sx={{
-                      fontSize: "0.8rem",
-                      "& .MuiInputBase-input": { py: 0.5, px: 1 },
-                    }}
-                  />
-                </Box>
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    {filterOptions.company.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </TableCell>
-              <TableCell sx={{ minWidth: 110 }}>
-                <strong>Sector</strong>
-                <Box sx={{ mt: 0.5 }}>
-                  <InputBase
-                    size="small"
-                    placeholder="Filter…"
-                    value={filters.sector}
-                    onChange={handleFilter("sector")}
-                    sx={{
-                      fontSize: "0.8rem",
-                      "& .MuiInputBase-input": { py: 0.5, px: 1 },
-                    }}
-                  />
-                </Box>
+              <TableCell sx={{ width: columnWidths.sector }}>
+                <FormControl size="small" fullWidth>
+                  <Select value={filters.sector} displayEmpty onChange={handleFilter("sector")}>
+                    <MenuItem value="">All</MenuItem>
+                    {filterOptions.sector.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </TableCell>
-              <TableCell align="right" sx={{ minWidth: 80 }}>
-                <strong>Price</strong>
-              </TableCell>
-              <TableCell align="right" sx={{ minWidth: 60 }}>
-                <strong>P/E</strong>
-              </TableCell>
-              <TableCell align="right" sx={{ minWidth: 80 }}>
-                <strong>Ann. Div</strong>
-              </TableCell>
-              <TableCell align="right" sx={{ minWidth: 80 }}>
-                <strong>Cur. Yield</strong>
-              </TableCell>
-              <TableCell sx={{ minWidth: 100 }}>
-                <strong>Valuation</strong>
-                <Box sx={{ mt: 0.5 }}>
-                  <InputBase
-                    size="small"
-                    placeholder="Filter…"
+              <TableCell align="right">—</TableCell>
+              <TableCell align="right">—</TableCell>
+              <TableCell align="right">—</TableCell>
+              <TableCell align="right">—</TableCell>
+              <TableCell sx={{ width: columnWidths.valuation }}>
+                <FormControl size="small" fullWidth>
+                  <Select
                     value={filters.valuation}
+                    displayEmpty
                     onChange={handleFilter("valuation")}
-                    sx={{
-                      fontSize: "0.8rem",
-                      "& .MuiInputBase-input": { py: 0.5, px: 1 },
-                    }}
-                  />
-                </Box>
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    {filterOptions.valuation.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </TableCell>
-              <TableCell sx={{ minWidth: 100 }}>
-                <strong>High Quality</strong>
-                <Box sx={{ mt: 0.5 }}>
-                  <InputBase
-                    size="small"
-                    placeholder="Filter…"
+              <TableCell sx={{ width: columnWidths.si_verdict }}>
+                <FormControl size="small" fullWidth>
+                  <Select
                     value={filters.si_verdict}
+                    displayEmpty
                     onChange={handleFilter("si_verdict")}
-                    sx={{
-                      fontSize: "0.8rem",
-                      "& .MuiInputBase-input": { py: 0.5, px: 1 },
-                    }}
-                  />
-                </Box>
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    {filterOptions.si_verdict.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </TableCell>
-              <TableCell sx={{ minWidth: 160 }}>
-                <strong>Why it fits</strong>
-                <Box sx={{ mt: 0.5 }}>
-                  <InputBase
-                    size="small"
-                    placeholder="Filter…"
+              <TableCell sx={{ width: columnWidths.why_it_fits }}>
+                <FormControl size="small" fullWidth>
+                  <Select
                     value={filters.why_it_fits}
+                    displayEmpty
                     onChange={handleFilter("why_it_fits")}
-                    sx={{
-                      fontSize: "0.8rem",
-                      "& .MuiInputBase-input": { py: 0.5, px: 1 },
-                    }}
-                  />
-                </Box>
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    {filterOptions.why_it_fits.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </TableCell>
             </TableRow>
           </TableHead>
@@ -207,7 +312,9 @@ export function HoldingsTable({
                     color={
                       String(h.valuation).toLowerCase().startsWith("under")
                         ? "success"
-                        : "default"
+                        : String(h.valuation).toLowerCase().startsWith("over")
+                          ? "warning"
+                          : "default"
                     }
                     variant="outlined"
                   />

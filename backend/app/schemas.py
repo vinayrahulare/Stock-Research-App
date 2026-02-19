@@ -42,3 +42,26 @@ class StatsResponse(BaseModel):
 class HoldingsListResponse(BaseModel):
     items: list[DividendHolding]
     total: int
+
+
+class HoldingsFilterOptionsResponse(BaseModel):
+    ticker: list[str]
+    company: list[str]
+    sector: list[str]
+    valuation: list[str]
+    si_verdict: list[str]
+    why_it_fits: list[str]
+
+
+class AuditLogEntry(BaseModel):
+    id: int
+    action: str
+    file_name: Optional[str] = None
+    imported_count: int
+    updated_count: int
+    status: str
+    message: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

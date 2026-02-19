@@ -21,3 +21,16 @@ class DividendHolding(Base):
     si_verdict = Column(String, nullable=False)
     why_it_fits = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    action = Column(String, nullable=False, index=True)
+    file_name = Column(String, nullable=True)
+    imported_count = Column(Integer, nullable=False, default=0)
+    updated_count = Column(Integer, nullable=False, default=0)
+    status = Column(String, nullable=False, index=True)
+    message = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
