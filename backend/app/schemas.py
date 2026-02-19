@@ -37,3 +37,8 @@ class StatsResponse(BaseModel):
     total: int
     avg_yield: Optional[float] = None
     undervalued_count: int
+
+
+class HoldingsListResponse(BaseModel):
+    items: list[DividendHolding]
+    total: int

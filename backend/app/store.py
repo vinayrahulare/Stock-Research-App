@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -38,6 +38,65 @@ class HoldingStore:
             DividendHoldingModel.ticker.asc(),
         ).all()
         return [_model_to_schema(r) for r in rows]
+
+    def _apply_filters(self, q, filters: Dict[str, Any]):
+        if not filters:
+            return q
+        if filters.get("ticker"):
+            q = q.filter(
+                DividendHoldingModel.ticker.ilike(f"%{filters['ticker'].strip()}%")
+            )
+        if filters.get("company"):
+            q = q.filter(
+                DividendHoldingModel.company.ilike(f"%{filters['company'].strip()}%")
+            )
+        if filters.get("sector"):
+            q = q.filter(
+                DividendHoldingModel.sector.ilike(f"%{filters['sector'].strip()}%")
+            )
+        if filters.get("valuation"):
+            q = q.filter(
+                DividendHoldingModel.valuation.ilike(
+                    f"%{filters['valuation'].strip()}%"
+                )
+            )
+        if filters.get("si_verdict"):
+            q = q.filter(
+                DividendHoldingModel.si_verdict.ilike(
+                    f"%{filters['si_verdict'].strip()}%"
+                )
+            )
+        if filters.get("why_it_fits"):
+            q = q.filter(
+                DividendHoldingModel.why_it_fits.ilike(
+                    f"%{filters['why_it_fits'].strip()}%"
+                )
+            )
+        return q
+
+    def list_filtered(
+        self,
+        filters: Optional[Dict[str, str]] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> List[DividendHolding]:
+        q = self.db.query(DividendHoldingModel).order_by(
+            DividendHoldingModel.valuation.asc(),
+            DividendHoldingModel.ticker.asc(),
+        )
+        q = self._apply_filters(q, filters or {})
+        rows = q.offset(skip).limit(limit).all()
+        return [_model_to_schema(r) for r in rows]
+
+    def count_filtered(self, filters: Optional[Dict[str, str]] = None) -> int:
+        q = self.db.query(func.count(DividendHoldingModel.id))
+        q = self._apply_filters(q, filters or {})
+        return q.scalar() or 0
+
+    def purge(self) -> int:
+        deleted = self.db.query(DividendHoldingModel).delete()
+        self.db.commit()
+        return deleted
 
     def get_by_ticker(self, ticker: str) -> Optional[DividendHolding]:
         row = self.db.query(DividendHoldingModel).filter(

@@ -1,3 +1,4 @@
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
@@ -6,13 +7,26 @@ from sqlalchemy.orm import Session
 
 from .csv_parser import parse_dividend_csv
 from .database import get_db, init_db
-from .schemas import DividendHolding, DividendHoldingCreate, StatsResponse
+from .schemas import (
+    DividendHolding,
+    DividendHoldingCreate,
+    HoldingsListResponse,
+    StatsResponse,
+)
 from .store import HoldingStore
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    # Retry init_db so we tolerate postgres being briefly unavailable at startup
+    for attempt in range(5):
+        try:
+            init_db()
+            break
+        except Exception as e:
+            if attempt == 4:
+                raise
+            time.sleep(2)
     yield
 
 
@@ -37,10 +51,45 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/api/holdings", response_model=list[DividendHolding])
-def list_holdings(db: Session = Depends(get_db)) -> list[DividendHolding]:
+@app.get("/api/holdings", response_model=HoldingsListResponse)
+def list_holdings(
+    db: Session = Depends(get_db),
+    ticker: str | None = None,
+    company: str | None = None,
+    sector: str | None = None,
+    valuation: str | None = None,
+    si_verdict: str | None = None,
+    why_it_fits: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> HoldingsListResponse:
     store = HoldingStore(db)
-    return store.list()
+    filters = {}
+    if ticker:
+        filters["ticker"] = ticker
+    if company:
+        filters["company"] = company
+    if sector:
+        filters["sector"] = sector
+    if valuation:
+        filters["valuation"] = valuation
+    if si_verdict:
+        filters["si_verdict"] = si_verdict
+    if why_it_fits:
+        filters["why_it_fits"] = why_it_fits
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    skip = (page - 1) * page_size
+    items = store.list_filtered(filters=filters or None, skip=skip, limit=page_size)
+    total = store.count_filtered(filters=filters or None)
+    return HoldingsListResponse(items=items, total=total)
+
+
+@app.delete("/api/holdings/purge", response_model=dict)
+def purge_holdings(db: Session = Depends(get_db)) -> dict:
+    store = HoldingStore(db)
+    deleted = store.purge()
+    return {"message": f"Purged {deleted} holdings", "deleted": deleted}
 
 
 @app.post("/api/holdings", response_model=DividendHolding, status_code=201)
