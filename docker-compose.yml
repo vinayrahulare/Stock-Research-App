@@ -2,7 +2,7 @@
 services:
   postgres:
     image: postgres:17
-    container_name: si-investing-postgres
+    container_name: stock-research-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: si_user
@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: si-investing-backend
+    container_name: stock-research-backend
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://si_user:si_password@postgres:5432/si_investing
@@ -37,7 +37,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    container_name: si-investing-frontend
+    container_name: stock-research-frontend
     restart: unless-stopped
     depends_on:
       - backend

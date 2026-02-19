@@ -1,4 +1,4 @@
-# SI Investing App
+# Stock-Research-App
 
 A personal dividend portfolio dashboard: view holdings in PostgreSQL and import from CSV. Built with the **same tech stack as [cloud-db-inventory](https://github.com/your-org/cloud-db-inventory)** for consistency.
 
@@ -91,7 +91,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 To run the **Excel/stock analysis script** (different deps), use a venv at the **repo root** and the root `requirements.txt`:
 
 ```bash
-cd /path/to/SI-Investing-App
+cd /path/to/Stock-Research-App
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -112,7 +112,7 @@ deactivate
 
 ```bash
 git clone <repo-url>
-cd SI-Investing-App
+cd Stock-Research-App
 ```
 
 ### 2. Environment variables (for local backend)
@@ -211,4 +211,4 @@ Open http://localhost:5173. The Vite dev server proxies `/api` and `/health` to 
 - **"relation does not exist"** — Backend runs `init_db()` on startup; ensure the backend has started after Postgres.
 - **Frontend can’t reach API** — In Docker, nginx proxies `/api` to `backend:8000`. For local dev, ensure the backend is on port 8000 and Vite proxy targets it (default).
 - **Port 5432, 8000, or 3000 in use** — Stop the conflicting process or change ports in `docker-compose.yml`.
-- **"postgres failed to start" / "container si-investing-postgres is unhealthy"** — Often caused by port 5432 already in use. Stop the other Postgres container, or run `docker compose up -d --remove-orphans` to remove orphaned containers. If you need another Postgres on the host, change the SI app Postgres port in `docker-compose.yml` (e.g. `"5433:5432"`).
+- **"postgres failed to start" / "container stock-research-postgres is unhealthy"** — Often caused by port 5432 already in use. Stop the other Postgres container, or run `docker compose up -d --remove-orphans` to remove orphaned containers. If you need another Postgres on the host, change the SI app Postgres port in `docker-compose.yml` (e.g. `"5433:5432"`).

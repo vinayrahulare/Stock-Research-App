@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SI Investing App",
+    title="Stock-Research-App",
     version="0.1.0",
     description="Dividend portfolio dashboard",
     lifespan=lifespan,
