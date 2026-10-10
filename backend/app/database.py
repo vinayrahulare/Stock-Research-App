@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 
@@ -25,3 +25,18 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns():
+    # create_all() doesn't alter existing tables, so add columns introduced after
+    # a database was first created.
+    columns = {c["name"] for c in inspect(engine).get_columns("dividend_holdings")}
+    if "price_updated_at" not in columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE dividend_holdings "
+                    "ADD COLUMN price_updated_at TIMESTAMP WITH TIME ZONE"
+                )
+            )

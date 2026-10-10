@@ -13,6 +13,7 @@ export interface DividendHolding {
   growth_5y: string | number | null;
   si_verdict: string;
   why_it_fits: string;
+  price_updated_at: string | null;
   created_at: string;
 }
 
@@ -20,4 +21,5 @@ export interface StatsResponse {
   total: number;
   avg_yield: number | null;
   undervalued_count: number;
+  last_price_refresh: string | null;
 }

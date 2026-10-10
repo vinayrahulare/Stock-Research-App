@@ -168,6 +168,20 @@ Open http://localhost:5173. The Vite dev server proxies `/api` and `/health` to 
 - **From the UI:** Open the app → “Import CSV” → choose a dividend portfolio CSV (columns: Ticker, Company, Sector, Price, P/E, Ann. Div, Cur. Yield, 5-Yr Avg Yield, Valuation, Payout %, 5-Yr Gr, SI Verdict, Why it fits).
 - **Sample files:** Put CSVs in the **`raw_data/`** folder (gitignored) and use them for import.
 
+### 7. Refresh prices
+
+Prices from a CSV go stale, so the backend can pull the latest daily close from Yahoo Finance (via `yfinance`):
+
+- **On demand:** click **Refresh prices** on the dashboard (or `POST /api/holdings/refresh-prices`).
+- **Daily:** the backend refreshes automatically on weekdays at 22:30 UTC, after the US market close.
+
+Each refresh updates **Price**, recalculates **Cur. Yield** (annual dividend ÷ price) and scales **P/E** with the price. Valuation, High Quality and the 5-year figures come from your research report and are not changed. Tickers Yahoo doesn't recognize are retried with the TSX suffix (`.TO`); any still not found keep their CSV price and are listed in the result and the audit log. Hover a price to see when it was last refreshed; re-importing a CSV resets it to the CSV value.
+
+| Env var | Default | Purpose |
+|--------|---------|---------|
+| `PRICE_REFRESH_ENABLED` | `true` | Set to `false` to turn off the daily refresh |
+| `PRICE_REFRESH_TIME_UTC` | `22:30` | Daily refresh time (UTC, `HH:MM`), weekdays only |
+
 ---
 
 ## Project structure
@@ -200,6 +214,7 @@ Open http://localhost:5173. The Vite dev server proxies `/api` and `/health` to 
 | `npm run dev` | frontend/ | Vite dev server (proxies API to backend) |
 | `npm run build` | frontend/ | Production build |
 | `uvicorn app.main:app --reload` | backend/ | Run FastAPI with auto-reload |
+| `pip install pytest httpx && python -m pytest` | backend/ | Run backend tests |
 | `python scripts/excel_stock_analysis.py <path>` | root | Analyze Excel/CSV for stock tickers (standalone script) |
 
 ---

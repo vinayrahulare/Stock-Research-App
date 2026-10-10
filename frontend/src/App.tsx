@@ -27,6 +27,7 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { createAppTheme } from "./theme";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { StatCards } from "./components/StatCards";
@@ -44,6 +45,7 @@ import {
   fetchHoldings,
   fetchStats,
   purgeHoldings,
+  refreshPrices,
 } from "./api/client";
 import type { AuditLogEntry } from "./api/client";
 import type { DividendHolding, StatsResponse } from "./types";
@@ -84,6 +86,11 @@ function App() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [purging, setPurging] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [notice, setNotice] = useState<{
+    severity: "success" | "warning";
+    text: string;
+  } | null>(null);
   const [mode, setMode] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("si-theme-mode");
     return saved === "dark" ? "dark" : "light";
@@ -170,6 +177,31 @@ function App() {
     }
   };
 
+  const handleRefreshPrices = async () => {
+    setRefreshing(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await refreshPrices();
+      setNotice({
+        severity: result.failed > 0 ? "warning" : "success",
+        text: result.message,
+      });
+      await load();
+    } catch (e: unknown) {
+      let msg = "Failed to refresh prices";
+      if (e && typeof e === "object") {
+        const detail = (e as { response?: { data?: { detail?: unknown } } })
+          .response?.data?.detail;
+        if (typeof detail === "string") msg = detail;
+        else if ("message" in e) msg = String((e as { message: unknown }).message);
+      }
+      setError(msg);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleExportCsv = async () => {
     setExporting(true);
     setError(null);
@@ -214,6 +246,12 @@ function App() {
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Personal dividend holdings dashboard
+                  {stats && stats.total > 0 &&
+                    (stats.last_price_refresh
+                      ? ` · Prices refreshed ${new Date(
+                          stats.last_price_refresh
+                        ).toLocaleString()}`
+                      : " · Prices from CSV import")}
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} alignItems="center">
@@ -223,6 +261,14 @@ function App() {
                 >
                   {mode === "light" ? <DarkModeRoundedIcon /> : <LightModeRoundedIcon />}
                 </IconButton>
+                <Button
+                  variant="outlined"
+                  startIcon={<RefreshRoundedIcon />}
+                  onClick={handleRefreshPrices}
+                  disabled={refreshing || (stats?.total ?? 0) === 0}
+                >
+                  {refreshing ? "Refreshing…" : "Refresh prices"}
+                </Button>
                 <Button
                   variant="contained"
                   startIcon={<CloudUploadRoundedIcon />}
@@ -241,6 +287,11 @@ function App() {
             {tab === 0 && (
               <>
                 <StatCards stats={stats} />
+                {notice && (
+                  <Alert severity={notice.severity} onClose={() => setNotice(null)}>
+                    {notice.text}
+                  </Alert>
+                )}
                 {error && (
                   <Alert severity="error" onClose={() => setError(null)}>
                     {error}

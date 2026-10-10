@@ -99,6 +99,24 @@ export const fetchStats = async () => {
   return data;
 };
 
+export interface RefreshPricesResult {
+  message: string;
+  updated: number;
+  failed: number;
+  failed_tickers: string[];
+  refreshed_at: string;
+}
+
+export const refreshPrices = async (): Promise<RefreshPricesResult> => {
+  const { data } = await apiClient.post<RefreshPricesResult>(
+    "/holdings/refresh-prices",
+    null,
+    // Fetching quotes for a whole portfolio takes longer than the default timeout.
+    { timeout: 120000 }
+  );
+  return data;
+};
+
 export type DuplicateStrategy = "ask" | "skip" | "replace";
 
 export const importCsv = async (

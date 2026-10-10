@@ -20,6 +20,8 @@ class DividendHolding(Base):
     growth_5y = Column(Numeric(6, 2), nullable=True)
     si_verdict = Column(String, nullable=False)
     why_it_fits = Column(String, nullable=False)
+    # Set by the price refresh; null means the price came from a CSV import.
+    price_updated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

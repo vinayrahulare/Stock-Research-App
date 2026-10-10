@@ -27,6 +27,7 @@ class DividendHoldingCreate(DividendHoldingBase):
 
 class DividendHolding(DividendHoldingBase):
     id: int
+    price_updated_at: Optional[datetime] = None
     created_at: datetime
 
     class Config:
@@ -37,6 +38,15 @@ class StatsResponse(BaseModel):
     total: int
     avg_yield: Optional[float] = None
     undervalued_count: int
+    last_price_refresh: Optional[datetime] = None
+
+
+class RefreshPricesResponse(BaseModel):
+    message: str
+    updated: int
+    failed: int
+    failed_tickers: list[str]
+    refreshed_at: datetime
 
 
 class HoldingsListResponse(BaseModel):

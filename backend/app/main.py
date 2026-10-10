@@ -1,3 +1,4 @@
+import asyncio
 import time
 from contextlib import asynccontextmanager
 from io import StringIO
@@ -10,12 +11,20 @@ from sqlalchemy.orm import Session
 
 from .csv_parser import parse_dividend_csv
 from .database import get_db, init_db
+from .price_refresh import (
+    RefreshInProgressError,
+    describe,
+    refresh_prices,
+    run_daily_schedule,
+    schedule_enabled,
+)
 from .schemas import (
     AuditLogEntry,
     DividendHolding,
     DividendHoldingCreate,
     HoldingsFilterOptionsResponse,
     HoldingsListResponse,
+    RefreshPricesResponse,
     StatsResponse,
 )
 from .store import HoldingStore
@@ -32,7 +41,10 @@ async def lifespan(app: FastAPI):
             if attempt == 4:
                 raise
             time.sleep(2)
+    scheduler = asyncio.create_task(run_daily_schedule()) if schedule_enabled() else None
     yield
+    if scheduler:
+        scheduler.cancel()
 
 
 app = FastAPI(
@@ -185,6 +197,46 @@ def purge_holdings(db: Session = Depends(get_db)) -> dict:
         message=f"Purged {deleted} holdings",
     )
     return {"message": f"Purged {deleted} holdings", "deleted": deleted}
+
+
+@app.post("/api/holdings/refresh-prices", response_model=RefreshPricesResponse)
+def refresh_holding_prices(db: Session = Depends(get_db)) -> RefreshPricesResponse:
+    store = HoldingStore(db)
+    try:
+        result = refresh_prices(db)
+    except RefreshInProgressError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        store.create_audit_log(
+            action="refresh_prices",
+            file_name=None,
+            imported_count=0,
+            updated_count=0,
+            status="failed",
+            message=f"Price refresh failed: {e}",
+        )
+        raise HTTPException(status_code=502, detail=f"Price refresh failed: {e}")
+
+    if result.total == 0:
+        message = "No holdings to refresh"
+    else:
+        message = describe(result, "manual")
+        store.create_audit_log(
+            action="refresh_prices",
+            file_name=None,
+            imported_count=0,
+            updated_count=result.updated,
+            status="success" if result.updated else "failed",
+            message=message,
+        )
+    return RefreshPricesResponse(
+        message=message,
+        updated=result.updated,
+        failed=len(result.failed_tickers),
+        failed_tickers=result.failed_tickers,
+        refreshed_at=result.refreshed_at,
+    )
 
 
 @app.get("/api/audit-logs", response_model=list[AuditLogEntry])

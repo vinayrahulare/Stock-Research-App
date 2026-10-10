@@ -16,6 +16,7 @@ import {
   Select,
   SelectChangeEvent,
   TableSortLabel,
+  Tooltip,
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import type { DividendHolding } from "../types";
@@ -301,7 +302,17 @@ export function HoldingsTable({
                 </TableCell>
                 <TableCell>{h.company}</TableCell>
                 <TableCell>{h.sector}</TableCell>
-                <TableCell align="right">${num(h.price)}</TableCell>
+                <TableCell align="right">
+                  <Tooltip
+                    title={
+                      h.price_updated_at
+                        ? `Refreshed ${new Date(h.price_updated_at).toLocaleString()}`
+                        : "From CSV import"
+                    }
+                  >
+                    <span>${num(h.price)}</span>
+                  </Tooltip>
+                </TableCell>
                 <TableCell align="right">{num(h.pe)}</TableCell>
                 <TableCell align="right">${num(h.annual_div)}</TableCell>
                 <TableCell align="right">{num(h.current_yield)}%</TableCell>

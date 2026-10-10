@@ -25,6 +25,7 @@ def _model_to_schema(m: DividendHoldingModel) -> DividendHolding:
         growth_5y=m.growth_5y,
         si_verdict=m.si_verdict,
         why_it_fits=m.why_it_fits,
+        price_updated_at=m.price_updated_at,
         created_at=m.created_at,
     )
 
@@ -173,6 +174,8 @@ class HoldingStore:
         if row:
             for k, v in payload.items():
                 setattr(row, k, v)
+            # The price now comes from the import, not the last refresh.
+            row.price_updated_at = None
             self.db.commit()
             self.db.refresh(row)
             return _model_to_schema(row)
@@ -218,13 +221,22 @@ class HoldingStore:
     def stats(self) -> dict:
         total = self.db.query(func.count(DividendHoldingModel.id)).scalar() or 0
         if total == 0:
-            return {"total": 0, "avg_yield": None, "undervalued_count": 0}
+            return {
+                "total": 0,
+                "avg_yield": None,
+                "undervalued_count": 0,
+                "last_price_refresh": None,
+            }
         avg = self.db.query(func.avg(DividendHoldingModel.current_yield)).scalar()
         undervalued = self.db.query(func.count(DividendHoldingModel.id)).filter(
             func.lower(DividendHoldingModel.valuation).like("under%")
         ).scalar() or 0
+        last_refresh = self.db.query(
+            func.max(DividendHoldingModel.price_updated_at)
+        ).scalar()
         return {
             "total": total,
             "avg_yield": float(avg) if avg is not None else None,
             "undervalued_count": undervalued,
+            "last_price_refresh": last_refresh,
         }
